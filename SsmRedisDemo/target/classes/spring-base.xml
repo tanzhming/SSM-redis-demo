@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans 
+      xmlns="http://www.springframework.org/schema/beans"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:context="http://www.springframework.org/schema/context"
+      xmlns:aop="http://www.springframework.org/schema/aop"
+      xmlns:tx="http://www.springframework.org/schema/tx"
+	  xmlns:mvc="http://www.springframework.org/schema/mvc"
+	  xmlns:p="http://www.springframework.org/schema/p" 
+		
+      xsi:schemaLocation="
+	  http://www.springframework.org/schema/beans
+      http://www.springframework.org/schema/beans/spring-beans.xsd
+	  http://www.springframework.org/schema/context
+      http://www.springframework.org/schema/context/spring-context-3.0.xsd
+	  http://www.springframework.org/schema/aop 
+	  http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+	  http://www.springframework.org/schema/tx
+      http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+      http://www.springframework.org/schema/mvc
+      http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
+      ">
+     <!-- 引入properties文件 -->
+    <context:property-placeholder location="classpath:*.properties"/>
+    
+	<bean id="comboPooledDataSourceID" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${jdbc_driver}"></property>
+		<property name="jdbcUrl" value="${jdbc_url}"></property>
+		<property name="user" value="${jdbc_username}"></property>
+		<property name="password" value="${jdbc_password}"></property>
+		<property name="initialPoolSize" value="3"></property>
+		<property name="maxPoolSize" value="100"></property>
+		<property name="maxStatements" value="100"></property>
+	</bean>
+	
+	
+	<!-- 加载mybatis配置文件 -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="configLocation" value="classpath:mybatis.xml"></property>
+		<property name="dataSource" ref="comboPooledDataSourceID"></property>
+		<!-- 开启缓存支持 -->
+		 <property name="configurationProperties">
+			<props>
+				<prop key="cacheEnabled">true</prop>
+				<!-- 查询时，关闭关联对象即时加载以提高性能 -->
+				<prop key="lazyLoadingEnabled">false</prop>
+				<!-- 设置关联对象加载的形态，此处为按需加载字段(加载字段由SQL指定)，不会加载关联表的所有字段，以提高性能 -->
+				<prop key="aggressiveLazyLoading">true</prop>
+				<!-- 对于未知的SQL查询，允许返回不同的结果集以达到通用的效果 -->
+				<prop key="multipleResultSetsEnabled">true</prop>
+				<!-- 允许使用列标签代替列名 -->
+				<prop key="useColumnLabel">true</prop>
+				<!-- 允许使用自定义的主键值(比如由程序生成的UUID 32位编码作为键值)，数据表的PK生成策略将被覆盖 -->
+				<prop key="useGeneratedKeys">true</prop>
+				<!-- 给予被嵌套的resultMap以字段-属性的映射支持 -->
+				<prop key="autoMappingBehavior">FULL</prop>
+				<!-- 对于批量更新操作缓存SQL以提高性能 -->
+				<prop key="defaultExecutorType">BATCH</prop>
+				<!-- 数据库超过25000秒仍未响应则超时 -->
+				<prop key="defaultStatementTimeout">25000</prop>
+			</props>
+		</property>
+	</bean>
+	
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+	    <property name="basePackage" value="com.immense.tw.dao" />
+	    <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+  	</bean>
+	
+	<!-- 事务管理器类 -->
+	<bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="comboPooledDataSourceID"></property>
+	</bean>
+	
+	<!-- 开启注解扫描 -->
+	<context:component-scan base-package="com.immense.tw"></context:component-scan>
+	
+	<!-- 注解方式实现事务:指定注解方式方式实现事务 -->
+	<tx:annotation-driven transaction-manager="txManager"/>
+	
+	<!-- redis 配置 -->
+	<bean id="poolConfig" class="redis.clients.jedis.JedisPoolConfig"></bean>
+	
+	<bean id="connectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" 
+						p:host-name="${redis.host}" 
+						p:port="${redis.port}" 
+						p:pool-config-ref="poolConfig"/> 
+	<bean id="redisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate">  
+    	<property name="connectionFactory"   ref="connectionFactory" />  
+  	</bean>
+	
+	<!-- 配置使用@ResponseBody方法返回数据的bean -->
+	 <bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter" >  
+	   <property name="messageConverters">   
+	         <list>
+	             <!-- 配置该bean是为了解决返回字符串的中文乱码问题,因为StringHttpMessageConverter默认编码为ISO-8859-1 -->   
+	             <bean class = "org.springframework.http.converter.StringHttpMessageConverter">   
+	                <property name = "supportedMediaTypes">
+	                      <list>
+	                          <value>text/html;charset=UTF-8</value>
+	                     </list>   
+	                </property>   
+	             </bean>
+	             <!-- 返回JSON数据时一定要配置该bean -->
+	             <bean class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter">
+	              <property name="supportedMediaTypes">
+	                <list>
+	                 <value>application/json;charset=UTF-8</value>
+	                </list>
+	              </property>
+	             </bean>   
+	         </list>   
+	   </property>  
+	 </bean>  
+	 
+</beans>      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
